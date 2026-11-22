@@ -1,0 +1,5 @@
+# NOT consumed by build-linux.sh or build-hosted.sh today (there is no build-handoff.sh yet). This
+# is here so the shape matches kernel/patches/oneios-hosted/series for whoever writes that build
+# script next: it would append this file's one entry to kernel/device/patches/xnu-12377/series's
+# own list, the same way build-hosted.sh's HOSTED_SERIES append works (see that script).
+oneios-handoff-start.patch

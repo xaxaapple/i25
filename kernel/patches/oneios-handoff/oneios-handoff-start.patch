@@ -1,0 +1,22 @@
+# NEW (this project), parallel to kernel/device/patches/xnu-12377/oneios-board-start.patch but
+# calling oneios_handoff_start() (handoff_shim.c) instead of the hosted-mode hooks. Deliberately
+# NOT added to kernel/device/patches/xnu-12377/series (the series build-linux.sh and
+# build-hosted.sh both use): that series's call site runs on every oneios build, hosted included,
+# and oneios_handoff_start() must never be reachable from a hosted build. It belongs to a
+# handoff-only series (kernel/patches/oneios-handoff/series) for a build-handoff.sh that does not
+# exist yet -- see README.md "What is NOT done here" before wiring this in.
+diff --git a/bsd/kern/bsd_init.c b/bsd/kern/bsd_init.c
+index 3907c55..9c1a2f0 100644
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -791,6 +791,9 @@ bsd_init(void)
+ 	extern void native_source_storage_start(void) __attribute__((weak_import));
+ 	if (&native_source_storage_start)
+ 		native_source_storage_start();
++	/* OneiOS handoff mode (kernel/patches/oneios-handoff/): native GPU and touch bring-up, only
++	 * under boot-arg oneios-handoff=1 (handoff_shim.c checks; this call is unconditional). */
++	extern void oneios_handoff_start(void);
++	oneios_handoff_start();
+ #if DEVELOPMENT || DEBUG
+ 	native_apfs_load_probe();
+ 	native_mobile_graphics_load_probe();

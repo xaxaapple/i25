@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="oneios-handoff launcher — experimental, your own device, your own risk. Each step below is gated on the one before it; read docs before pressing anything past Probe."
+        android:textStyle="italic"
+        android:paddingBottom="12dp" />
+
+    <Button
+        android:id="@+id/btnProbe"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="1. Probe (read-only: su check, load module, probe)" />
+
+    <Button
+        android:id="@+id/btnLoadPayload"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:enabled="false"
+        android:text="2. Pick kernel.kc + device tree, build payload" />
+
+    <Button
+        android:id="@+id/btnDryRun"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:enabled="false"
+        android:text="3. Dry run (park + release every secondary CPU, reversible)" />
+
+    <Button
+        android:id="@+id/btnJump"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:enabled="false"
+        android:backgroundTint="#B00020"
+        android:textColor="#FFFFFF"
+        android:text="4. JUMP — point of no return" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="12dp">
+        <TextView
+            android:id="@+id/txtLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true"
+            android:textSize="11sp" />
+    </ScrollView>
+</LinearLayout>

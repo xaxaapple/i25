@@ -1,0 +1,86 @@
+name: handoff kernel module
+# Builds kernel/patches/oneios-handoff/km/oneios_handoff.ko out-of-tree against the GKI common
+# kernel branch matching the S25's kernel (android15-6.6, kernel 6.6.98 -- see km/README.md
+# "Which kernel source" for why that branch). This only proves the module COMPILES against that
+# KMI's headers with the branch's own pinned toolchain; it does not and cannot prove it loads or
+# runs on a real phone (there is no device here) -- see km/README.md for what is and is not
+# proven by a green run of this workflow.
+on:
+  push:
+    paths:
+      - 'kernel/patches/oneios-handoff/km/**'
+      - '.github/workflows/handoff-km.yml'
+  workflow_dispatch:
+
+jobs:
+  build-module:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # Shallow, single-branch: the full android15-6.6 history is large and we only need the
+      # headers and build config at HEAD of the branch, not its history.
+      - name: Clone the GKI common kernel (android15-6.6)
+        run: |
+          git clone --depth=1 --branch android15-6.6 \
+            https://android.googlesource.com/kernel/common common-kernel
+
+      - name: Fetch the branch's pinned Clang toolchain
+        run: |
+          set -e
+          cd common-kernel
+          # The branch names its own toolchain version in build.config.common (CLANG_VERSION=...);
+          # read it instead of guessing a version, so this tracks the branch if it is ever rebased.
+          CLANG_VERSION=$(grep -oP 'CLANG_VERSION=\K.*' build.config.common | tr -d '"' || true)
+          if [ -z "$CLANG_VERSION" ]; then
+            echo "::warning::could not read CLANG_VERSION from build.config.common; falling back to the system clang"
+            echo "CLANG_BIN=/usr/bin" >> "$GITHUB_ENV"
+          else
+            echo "Pinned Clang: $CLANG_VERSION"
+            curl -fsSL "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/${CLANG_VERSION}/clang-${CLANG_VERSION}.tar.gz" \
+              -o clang.tar.gz || echo "::warning::could not fetch the pinned Clang archive by tag name; see the job log for the fallback"
+            if [ -s clang.tar.gz ]; then
+              mkdir -p "$HOME/clang-${CLANG_VERSION}"
+              tar -xzf clang.tar.gz -C "$HOME/clang-${CLANG_VERSION}"
+              echo "CLANG_BIN=$HOME/clang-${CLANG_VERSION}/bin" >> "$GITHUB_ENV"
+            else
+              echo "CLANG_BIN=/usr/bin" >> "$GITHUB_ENV"
+            fi
+          fi
+
+      - name: Install a fallback clang/lld (used only if the pinned fetch above did not produce one)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld llvm bc flex bison libssl-dev libelf-dev
+
+      - name: Configure gki_defconfig for arm64
+        run: |
+          set -e
+          cd common-kernel
+          export PATH="$CLANG_BIN:$PATH"
+          make ARCH=arm64 LLVM=1 O=out gki_defconfig
+          make ARCH=arm64 LLVM=1 O=out modules_prepare -j"$(nproc)"
+
+      - name: Build oneios_handoff.ko
+        run: |
+          set -e
+          export PATH="$CLANG_BIN:$PATH"
+          make -C common-kernel/out M="$GITHUB_WORKSPACE/kernel/patches/oneios-handoff/km" \
+            ARCH=arm64 LLVM=1 modules -j"$(nproc)"
+
+      - name: Report what was actually proven
+        run: |
+          echo "Built against android15-6.6's gki_defconfig headers with that branch's own pinned"
+          echo "toolchain (or, if the pin fetch failed above, the runner's system clang -- check the"
+          echo "step above before trusting vermagic compatibility with that fallback)."
+          echo "This proves the module COMPILES. It does NOT prove it loads (vermagic/KMI match on"
+          echo "the real S931B kernel) or that 'dryrun'/'jump' behave as intended -- there is no"
+          echo "device in this job. km/README.md says so plainly; this line exists so the artifact"
+          echo "name below is not mistaken for more than that."
+          find kernel/patches/oneios-handoff/km -name '*.ko' -exec ls -la {} \;
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oneios_handoff-ko-android15-6.6
+          path: kernel/patches/oneios-handoff/km/*.ko
+          if-no-files-found: error
